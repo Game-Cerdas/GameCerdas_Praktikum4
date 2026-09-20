@@ -4,7 +4,13 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Scenes/P04_AStarGrid.unity
+    guid: 16d02b354d843f042ae9750180168b8f
+  - enabled: 1
+    path: Assets/Scenes/P04_NavMesh.unity
+    guid: c290f611c54a59144ab0ebaa6ebbf088
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0
