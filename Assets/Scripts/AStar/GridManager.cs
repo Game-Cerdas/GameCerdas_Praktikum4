@@ -114,6 +114,22 @@ public class GridManager : MonoBehaviour
         );
     }
 
+    // Membuat ulang grid (dipakai eksperimen bagian 24, saat obstacle berubah saat Play).
+    public void RebuildGrid()
+    {
+        Transform old = transform.Find("GridVisuals");
+
+        if (old != null)
+        {
+            old.name = "GridVisuals_Old";
+            old.gameObject.SetActive(false);
+            Destroy(old.gameObject);
+        }
+
+        Physics.SyncTransforms();
+        CreateGrid();
+    }
+
     public GridNode NodeFromWorldPosition(Vector3 worldPosition)
     {
         Vector3 local =

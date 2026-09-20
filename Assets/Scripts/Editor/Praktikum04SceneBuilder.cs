@@ -23,9 +23,13 @@ public static class Praktikum04SceneBuilder
     private const string AStarScenePath = ScenesFolder + "/P04_AStarGrid.unity";
     private const string NavMeshScenePath = ScenesFolder + "/P04_NavMesh.unity";
     private const string IntegrationScenePath = ScenesFolder + "/P04_Integrasi.unity";
+    private const string LinkScenePath = ScenesFolder + "/P04_NavMeshLink.unity";
+    private const string AreaCostScenePath = ScenesFolder + "/P04_AreaCost.unity";
 
     private const string NavMeshDataPath = ScenesFolder + "/P04_NavMesh_NavMeshData.asset";
     private const string IntegrationNavMeshDataPath = ScenesFolder + "/P04_Integrasi_NavMeshData.asset";
+    private const string LinkNavMeshDataPath = ScenesFolder + "/P04_NavMeshLink_NavMeshData.asset";
+    private const string AreaCostNavMeshDataPath = ScenesFolder + "/P04_AreaCost_NavMeshData.asset";
 
     private const string PlayerPrefabPath = "Assets/Prefabs/Player.prefab";
     private const string NpcPrefabPath = "Assets/Prefabs/NPC.prefab";
@@ -88,9 +92,11 @@ public static class Praktikum04SceneBuilder
         }
 
         Scene scene = surface.gameObject.scene;
-        string dataPath = scene.path == IntegrationScenePath
-            ? IntegrationNavMeshDataPath
-            : NavMeshDataPath;
+        string dataPath = NavMeshDataPath;
+
+        if (scene.path == IntegrationScenePath) dataPath = IntegrationNavMeshDataPath;
+        else if (scene.path == LinkScenePath) dataPath = LinkNavMeshDataPath;
+        else if (scene.path == AreaCostScenePath) dataPath = AreaCostNavMeshDataPath;
 
         BakeSurface(surface, dataPath);
         EditorSceneManager.MarkSceneDirty(scene);
@@ -106,6 +112,8 @@ public static class Praktikum04SceneBuilder
         groundLayer = EnsureLayer("Ground");
 
         BuildNavMeshScene();
+        BuildLinkScene();
+        BuildAreaCostScene();
         BuildIntegrationScene();
         BuildAStarScene();
 
@@ -113,13 +121,16 @@ public static class Praktikum04SceneBuilder
         {
             new EditorBuildSettingsScene(AStarScenePath, true),
             new EditorBuildSettingsScene(NavMeshScenePath, true),
+            new EditorBuildSettingsScene(LinkScenePath, true),
+            new EditorBuildSettingsScene(AreaCostScenePath, true),
             new EditorBuildSettingsScene(IntegrationScenePath, true)
         };
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
 
-        Debug.Log("[Praktikum04] Tiga scene selesai dibuat: P04_AStarGrid, P04_NavMesh, P04_Integrasi.");
+        Debug.Log("[Praktikum04] Scene selesai dibuat: P04_AStarGrid, P04_NavMesh, " +
+                  "P04_NavMeshLink, P04_AreaCost, P04_Integrasi.");
     }
 
     // ==================================================================
@@ -196,6 +207,31 @@ public static class Praktikum04SceneBuilder
 
         ground.layer = groundLayer;
 
+        // --- Eksperimen bagian 24 (objeknya dibuat nonaktif, diaktifkan lewat tombol saat Play)
+        GameObject wallGroup = new GameObject("Eksperimen2_Wall");
+        for (int x = 0; x <= 7; x++)
+        {
+            CreateGridObstacle(wallGroup.transform, $"Wall_{x:00}", new Vector3(x, 0.5f, 7f));
+        }
+        wallGroup.SetActive(false);
+
+        GameObject cageGroup = new GameObject("Eksperimen3_Cage");
+        CreateGridObstacle(cageGroup.transform, "Cage_01", new Vector3(8f, 0.5f, 9f));
+        CreateGridObstacle(cageGroup.transform, "Cage_02", new Vector3(9f, 0.5f, 8f));
+        CreateGridObstacle(cageGroup.transform, "Cage_03", new Vector3(8f, 0.5f, 8f));
+        cageGroup.SetActive(false);
+
+        AStarExperimentSwitcher switcher = system.AddComponent<AStarExperimentSwitcher>();
+        switcher.gridManager = grid;
+        switcher.pathfinder = pathfinder;
+        switcher.agent = agent != null ? agent.transform : null;
+        switcher.startMarker = start.transform;
+        switcher.goalMarker = goal.transform;
+        switcher.experiment2Wall = wallGroup;
+        switcher.experiment3Cage = cageGroup;
+        switcher.defaultGoalPosition = new Vector3(9f, 0.2f, 9f);
+        switcher.experiment1GoalPosition = new Vector3(9f, 0.2f, 2f);
+
         EditorSceneManager.SaveScene(scene, AStarScenePath);
     }
 
@@ -270,6 +306,233 @@ public static class Praktikum04SceneBuilder
         BakeSurface(surface, NavMeshDataPath);
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene, NavMeshScenePath);
+    }
+
+    // ==================================================================
+    // SCENE NAVMESHLINK (bagian 46-47)
+    // ==================================================================
+    private static void BuildLinkScene()
+    {
+        Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+
+        CreateCamera(new Vector3(0f, 22f, -18f), new Vector3(52f, 0f, 0f), true);
+        CreateLight();
+
+        // Dua platform terpisah, dengan gap 4 unit di tengah.
+        GameObject platformA = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        platformA.name = "Platform_A";
+        platformA.transform.position = new Vector3(-8f, 0.5f, 0f);
+        platformA.transform.localScale = new Vector3(12f, 1f, 12f);
+        SetMat(platformA, "P04_Ground", new Color(0.25f, 0.32f, 0.28f));
+
+        GameObject platformB = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        platformB.name = "Platform_B";
+        platformB.transform.position = new Vector3(8f, 0.5f, 0f);
+        platformB.transform.localScale = new Vector3(12f, 1f, 12f);
+        SetMat(platformB, "P04_Ground", new Color(0.25f, 0.32f, 0.28f));
+
+        GameObject npc = InstantiatePrefab(NpcPrefabPath, "NPC", new Vector3(-11f, 2f, 0f));
+
+        if (npc != null)
+        {
+            DisableComponent<SteeringAgent>(npc);
+            DisableComponent<SteeringSensor>(npc);
+            DisableComponent<SteeringDebug>(npc);
+            DisableComponent<SteeringAgentVisual>(npc);
+            DisableComponent<PlayerVisionSensor>(npc);
+
+            NavMeshAgent navAgent = npc.AddComponent<NavMeshAgent>();
+            navAgent.speed = 3.5f;
+            navAgent.angularSpeed = 180f;
+            navAgent.acceleration = 8f;
+            navAgent.stoppingDistance = 1.5f;
+            navAgent.radius = 0.5f;
+            navAgent.height = 2f;
+
+            npc.AddComponent<NavMeshPathDebugger>();
+            IgnoreFromBake(npc);
+        }
+
+        GameObject target = InstantiatePrefab(PlayerPrefabPath, "PlayerTarget", new Vector3(11f, 2f, 0f));
+
+        if (target != null)
+        {
+            DisableComponent<SimplePlayerController>(target);
+            PlayerTargetMovement movement = target.AddComponent<PlayerTargetMovement>();
+            movement.moveSpeed = 5f;
+            IgnoreFromBake(target);
+        }
+
+        if (npc != null && target != null)
+        {
+            NavMeshChaser chaser = npc.AddComponent<NavMeshChaser>();
+            chaser.target = target.transform;
+        }
+
+        GameObject navigation = new GameObject("Navigation");
+        NavMeshSurface surface = CreateSurface(navigation);
+
+        EditorSceneManager.SaveScene(scene, LinkScenePath);
+        BakeSurface(surface, LinkNavMeshDataPath);
+
+        // Link dibuat setelah Bake: endpoint harus berada di atas NavMesh kedua platform.
+        GameObject linkObject = new GameObject("NavMeshLink");
+        linkObject.transform.position = new Vector3(0f, 1f, 0f);
+
+        NavMeshLink link = linkObject.AddComponent<NavMeshLink>();
+        link.startPoint = new Vector3(-2.8f, 0f, 0f);
+        link.endPoint = new Vector3(2.8f, 0f, 0f);
+        link.width = 3f;
+        link.bidirectional = true;
+        link.area = 2; // Jump
+        link.autoUpdate = true;
+
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene, LinkScenePath);
+    }
+
+    // ==================================================================
+    // SCENE AREA COST (bagian 48)
+    // ==================================================================
+    private static void BuildAreaCostScene()
+    {
+        int mudArea = EnsureArea("Mud", 10f);
+        int roadArea = EnsureArea("Road", 0.5f);
+
+        Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+
+        CreateCamera(new Vector3(0f, 38f, -26f), new Vector3(58f, 0f, 0f), true);
+        CreateLight();
+
+        GameObject ground = CreatePlane("Ground", Vector3.zero, new Vector3(4f, 1f, 4f));
+        ground.layer = groundLayer;
+
+        // Jalur lurus tertutup lumpur (cost tinggi).
+        GameObject mud = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        mud.name = "Mud_Area";
+        mud.transform.position = new Vector3(0f, 0.05f, 0f);
+        mud.transform.localScale = new Vector3(8f, 0.1f, 40f);
+        SetMat(mud, "P04_Mud", new Color(0.35f, 0.26f, 0.15f));
+        SetNavMeshArea(mud, mudArea);
+
+        // Jalan memutar dengan cost rendah.
+        GameObject roadGroup = new GameObject("Road_Area");
+        // Jalan sedikit lebih tinggi dari lumpur supaya area-nya yang terbaca saat Bake.
+        CreateRoadStrip(roadGroup.transform, "Road_North", new Vector3(0f, 0.09f, 16f), new Vector3(34f, 0.18f, 4f), roadArea);
+        CreateRoadStrip(roadGroup.transform, "Road_West", new Vector3(-16f, 0.09f, 8f), new Vector3(4f, 0.18f, 20f), roadArea);
+        CreateRoadStrip(roadGroup.transform, "Road_East", new Vector3(16f, 0.09f, 8f), new Vector3(4f, 0.18f, 20f), roadArea);
+
+        GameObject npc = InstantiatePrefab(NpcPrefabPath, "NPC", new Vector3(-16f, 1f, -8f));
+
+        if (npc != null)
+        {
+            DisableComponent<SteeringAgent>(npc);
+            DisableComponent<SteeringSensor>(npc);
+            DisableComponent<SteeringDebug>(npc);
+            DisableComponent<SteeringAgentVisual>(npc);
+            DisableComponent<PlayerVisionSensor>(npc);
+
+            NavMeshAgent navAgent = npc.AddComponent<NavMeshAgent>();
+            navAgent.speed = 3.5f;
+            navAgent.angularSpeed = 180f;
+            navAgent.acceleration = 8f;
+            navAgent.stoppingDistance = 1.5f;
+            navAgent.radius = 0.5f;
+            navAgent.height = 2f;
+
+            npc.AddComponent<NavMeshPathDebugger>();
+            IgnoreFromBake(npc);
+        }
+
+        GameObject target = InstantiatePrefab(PlayerPrefabPath, "PlayerTarget", new Vector3(16f, 1f, -8f));
+
+        if (target != null)
+        {
+            DisableComponent<SimplePlayerController>(target);
+            PlayerTargetMovement movement = target.AddComponent<PlayerTargetMovement>();
+            movement.moveSpeed = 5f;
+            IgnoreFromBake(target);
+        }
+
+        if (npc != null && target != null)
+        {
+            NavMeshChaser chaser = npc.AddComponent<NavMeshChaser>();
+            chaser.target = target.transform;
+        }
+
+        GameObject navigation = new GameObject("Navigation");
+        NavMeshSurface surface = CreateSurface(navigation);
+
+        EditorSceneManager.SaveScene(scene, AreaCostScenePath);
+        BakeSurface(surface, AreaCostNavMeshDataPath);
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene, AreaCostScenePath);
+    }
+
+    private static void CreateRoadStrip(Transform parent, string name, Vector3 position, Vector3 scale, int area)
+    {
+        GameObject strip = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        strip.name = name;
+        strip.transform.SetParent(parent);
+        strip.transform.position = position;
+        strip.transform.localScale = scale;
+        SetMat(strip, "P04_Road", new Color(0.62f, 0.62f, 0.66f));
+        SetNavMeshArea(strip, area);
+    }
+
+    private static void SetNavMeshArea(GameObject go, int area)
+    {
+        NavMeshModifier modifier = go.GetComponent<NavMeshModifier>();
+
+        if (modifier == null)
+        {
+            modifier = go.AddComponent<NavMeshModifier>();
+        }
+
+        modifier.overrideArea = true;
+        modifier.area = area;
+    }
+
+    // Mendaftarkan area NavMesh (Project Settings > Navigation Areas) bila belum ada.
+    private static int EnsureArea(string areaName, float cost)
+    {
+        Object asset = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/NavMeshAreas.asset")[0];
+        SerializedObject so = new SerializedObject(asset);
+        SerializedProperty areas = so.FindProperty("areas");
+
+        if (areas == null)
+        {
+            Debug.LogWarning("[Praktikum04] Tidak dapat membaca NavMeshAreas.asset.");
+            return 0;
+        }
+
+        for (int i = 0; i < areas.arraySize; i++)
+        {
+            SerializedProperty element = areas.GetArrayElementAtIndex(i);
+
+            if (element.FindPropertyRelative("name").stringValue == areaName)
+            {
+                element.FindPropertyRelative("cost").floatValue = cost;
+                so.ApplyModifiedProperties();
+                return i;
+            }
+        }
+
+        for (int i = 3; i < areas.arraySize; i++)
+        {
+            SerializedProperty element = areas.GetArrayElementAtIndex(i);
+
+            if (string.IsNullOrEmpty(element.FindPropertyRelative("name").stringValue))
+            {
+                element.FindPropertyRelative("name").stringValue = areaName;
+                element.FindPropertyRelative("cost").floatValue = cost;
+                so.ApplyModifiedProperties();
+                return i;
+            }
+        }
+
+        Debug.LogWarning($"[Praktikum04] Tidak ada slot area kosong untuk '{areaName}'.");
+        return 0;
     }
 
     // ==================================================================
@@ -378,6 +641,18 @@ public static class Praktikum04SceneBuilder
     // ==================================================================
     // Helper
     // ==================================================================
+    private static GameObject CreateGridObstacle(Transform parent, string name, Vector3 position)
+    {
+        GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        cube.name = name;
+        cube.transform.SetParent(parent);
+        cube.transform.position = position;
+        cube.transform.localScale = new Vector3(0.9f, 1f, 0.9f);
+        cube.layer = obstacleLayer;
+        SetMat(cube, "P04_Obstacle", new Color(0.15f, 0.15f, 0.18f));
+        return cube;
+    }
+
     private static NavMeshSurface CreateSurface(GameObject host)
     {
         NavMeshSurface surface = host.AddComponent<NavMeshSurface>();
