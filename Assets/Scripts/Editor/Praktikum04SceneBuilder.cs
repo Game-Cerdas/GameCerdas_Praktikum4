@@ -219,11 +219,14 @@ public static class Praktikum04SceneBuilder
         CreateWall("Wall_03", new Vector3(5f, 1f, -3f), new Vector3(5f, 2f, 1f));
 
         // PlayerTarget memakai prefab Player dari Praktikum 3 (WASD + CharacterController).
+        // PlayerTarget memakai visual prefab Player, tetapi digerakkan
+        // PlayerTargetMovement sesuai modul (bagian 40), bukan SimplePlayerController.
         GameObject player = InstantiatePrefab(PlayerPrefabPath, "PlayerTarget", new Vector3(8f, 1f, 8f));
         if (player != null)
         {
-            SimplePlayerController controller = player.GetComponent<SimplePlayerController>();
-            SetRef(controller, "groundBoundary", boundary);
+            DisableComponent<SimplePlayerController>(player);
+            PlayerTargetMovement targetMovement = player.AddComponent<PlayerTargetMovement>();
+            targetMovement.moveSpeed = 5f;
         }
 
         // NPC memakai prefab NPC dari Praktikum 3, tetapi digerakkan NavMeshAgent.
