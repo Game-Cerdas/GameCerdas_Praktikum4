@@ -235,6 +235,59 @@ public static class Praktikum04SceneBuilder
         EditorSceneManager.SaveScene(scene, AStarScenePath);
     }
 
+    // Tambah Agent A* kedua (Challenge 5), hanya menyentuh scene AStarGrid.
+    [MenuItem("Praktikum 04/Tambah Agent A* Kedua (Challenge 5)")]
+    public static void AddSecondAStarAgent()
+    {
+        Scene scene = EditorSceneManager.OpenScene(AStarScenePath, OpenSceneMode.Single);
+
+        GameObject existingAgent = GameObject.Find("Agent");
+        GameObject existingSystem = GameObject.Find("AStarSystem");
+
+        if (existingAgent == null || existingSystem == null)
+        {
+            Debug.LogWarning("[Praktikum04] Agent atau AStarSystem tidak ditemukan di scene.");
+            return;
+        }
+
+        if (GameObject.Find("Agent_02") != null)
+        {
+            Debug.LogWarning("[Praktikum04] Agent_02 sudah ada, proses dibatalkan.");
+            return;
+        }
+
+        GridManager grid = existingSystem.GetComponent<GridManager>();
+
+        GameObject start2 = CreateMarker("StartMarker_02", new Vector3(9f, 0.2f, 0f), "P04_Start", Color.green);
+        GameObject goal2 = CreateMarker("GoalMarker_02", new Vector3(0f, 0.2f, 9f), "P04_Goal", Color.red);
+
+        GameObject system2 = new GameObject("AStarSystem_02");
+        AStarPathfinder pathfinder2 = system2.AddComponent<AStarPathfinder>();
+        pathfinder2.gridManager = grid;
+        pathfinder2.startMarker = start2.transform;
+        pathfinder2.goalMarker = goal2.transform;
+
+        // Duplikat visual+komponen Agent pertama, lalu arahkan ke pathfinder kedua.
+        GameObject agent2 = Object.Instantiate(existingAgent);
+        agent2.name = "Agent_02";
+        agent2.transform.position = new Vector3(9f, 0.5f, 0f);
+        agent2.transform.rotation = Quaternion.identity;
+
+        AgentPathFollower follower2 = agent2.GetComponent<AgentPathFollower>();
+
+        if (follower2 == null)
+        {
+            follower2 = agent2.AddComponent<AgentPathFollower>();
+        }
+
+        follower2.pathfinder = pathfinder2;
+
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene, AStarScenePath);
+
+        Debug.Log("[Praktikum04] Agent_02 + AStarSystem_02 + StartMarker_02/GoalMarker_02 ditambahkan.");
+    }
+
     // ==================================================================
     // BAGIAN B — NAVMESH
     // ==================================================================

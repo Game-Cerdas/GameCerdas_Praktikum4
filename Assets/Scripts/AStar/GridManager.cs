@@ -18,9 +18,15 @@ public class GridManager : MonoBehaviour
     public LayerMask roadMask;
     public LayerMask mudMask;
 
+    [Header("Neighbor Mode")]
+    [SerializeField]
+    private bool useDiagonalNeighbors = true;
+
     [Header("Visualization")]
     public bool showGrid = true;
     public float visualHeight = 0.05f;
+
+    public bool UseDiagonalNeighbors => useDiagonalNeighbors;
 
     public GridNode[,] grid;
 
@@ -192,11 +198,14 @@ public class GridManager : MonoBehaviour
         TryAddNeighbor(node.x, node.y + 1, neighbors);
         TryAddNeighbor(node.x, node.y - 1, neighbors);
 
-        // Diagonal
-        TryAddNeighbor(node.x + 1, node.y + 1, neighbors);
-        TryAddNeighbor(node.x + 1, node.y - 1, neighbors);
-        TryAddNeighbor(node.x - 1, node.y + 1, neighbors);
-        TryAddNeighbor(node.x - 1, node.y - 1, neighbors);
+        // Diagonal (Challenge 1, opsional)
+        if (useDiagonalNeighbors)
+        {
+            TryAddNeighbor(node.x + 1, node.y + 1, neighbors);
+            TryAddNeighbor(node.x + 1, node.y - 1, neighbors);
+            TryAddNeighbor(node.x - 1, node.y + 1, neighbors);
+            TryAddNeighbor(node.x - 1, node.y - 1, neighbors);
+        }
 
         return neighbors;
     }   

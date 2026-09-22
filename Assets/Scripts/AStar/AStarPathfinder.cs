@@ -218,6 +218,12 @@ public class AStarPathfinder : MonoBehaviour
         int dx = Mathf.Abs(a.x - b.x);
         int dy = Mathf.Abs(a.y - b.y);
 
+        // Mode dasar 4-arah: Manhattan Distance murni
+        if (!gridManager.UseDiagonalNeighbors)
+        {
+            return (dx + dy) * 10;
+        }
+
         int diagonal = Mathf.Min(dx, dy);
         int straight = Mathf.Abs(dx - dy);
 
