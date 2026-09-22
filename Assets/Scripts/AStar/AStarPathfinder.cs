@@ -125,8 +125,26 @@ public class AStarPathfinder : MonoBehaviour
                     continue;
                 }
 
+                bool isDiagonal =
+                    currentNode.x != neighbor.x &&
+                    currentNode.y != neighbor.y;
+
+                int moveCost;
+
+                if (isDiagonal)
+                {
+                    moveCost =
+                        Mathf.RoundToInt(
+                            neighbor.terrainCost * 1.4f
+                        );
+                }
+                else
+                {
+                    moveCost = neighbor.terrainCost;
+                }
+
                 int tentativeGCost =
-                    currentNode.gCost + 10;
+                    currentNode.gCost + moveCost;
 
                 if (tentativeGCost <
                     neighbor.gCost)
@@ -200,7 +218,11 @@ public class AStarPathfinder : MonoBehaviour
         int dx = Mathf.Abs(a.x - b.x);
         int dy = Mathf.Abs(a.y - b.y);
 
-        return (dx + dy) * 10;
+        int diagonal = Mathf.Min(dx, dy);
+        int straight = Mathf.Abs(dx - dy);
+
+        return diagonal * 7 +
+            straight * 5;
     }
 
     private List<GridNode> ReconstructPath(

@@ -9,6 +9,8 @@ public class GridNode
 
     public bool walkable;
 
+    public int terrainCost;
+
     public int gCost;
     public int hCost;
 
@@ -35,6 +37,8 @@ public class GridNode
         this.worldPosition = worldPosition;
         this.walkable = walkable;
 
+        terrainCost = 10;
+        
         gCost = int.MaxValue;
         hCost = 0;
         parent = null;

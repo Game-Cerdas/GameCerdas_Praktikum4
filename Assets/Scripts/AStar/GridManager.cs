@@ -14,6 +14,10 @@ public class GridManager : MonoBehaviour
     [Header("Obstacle Detection")]
     public LayerMask obstacleMask;
 
+    [Header("Terrain Detection")]
+    public LayerMask roadMask;
+    public LayerMask mudMask;
+
     [Header("Visualization")]
     public bool showGrid = true;
     public float visualHeight = 0.05f;
@@ -53,12 +57,45 @@ public class GridManager : MonoBehaviour
 
                 bool walkable = !blocked;
 
+                int terrainCost = 10; // Normal
+
+                bool isRoad = Physics.CheckBox(
+                    worldPosition + Vector3.up * 0.1f,
+                    new Vector3(
+                        cellSize * 0.4f,
+                        0.1f,
+                        cellSize * 0.4f),
+                    Quaternion.identity,
+                    roadMask
+                );
+
+                bool isMud = Physics.CheckBox(
+                    worldPosition + Vector3.up * 0.1f,
+                    new Vector3(
+                        cellSize * 0.4f,
+                        0.1f,
+                        cellSize * 0.4f),
+                    Quaternion.identity,
+                    mudMask
+                );
+
+                if (isRoad)
+                {
+                    terrainCost = 5;
+                }
+                else if (isMud)
+                {
+                    terrainCost = 30;
+                }
+                
                 GridNode node = new GridNode(
                     x,
                     y,
                     worldPosition,
                     walkable
                 );
+
+                node.terrainCost = terrainCost;
 
                 grid[x, y] = node;
 
@@ -110,7 +147,7 @@ public class GridManager : MonoBehaviour
 
         SetNodeColor(
             node,
-            node.walkable ? Color.white : Color.black
+            GetBaseNodeColor(node)
         );
     }
 
@@ -149,13 +186,20 @@ public class GridManager : MonoBehaviour
         List<GridNode> neighbors =
             new List<GridNode>();
 
+        // Lurus
         TryAddNeighbor(node.x + 1, node.y, neighbors);
         TryAddNeighbor(node.x - 1, node.y, neighbors);
         TryAddNeighbor(node.x, node.y + 1, neighbors);
         TryAddNeighbor(node.x, node.y - 1, neighbors);
 
+        // Diagonal
+        TryAddNeighbor(node.x + 1, node.y + 1, neighbors);
+        TryAddNeighbor(node.x + 1, node.y - 1, neighbors);
+        TryAddNeighbor(node.x - 1, node.y + 1, neighbors);
+        TryAddNeighbor(node.x - 1, node.y - 1, neighbors);
+
         return neighbors;
-    }
+    }   
 
     private void TryAddNeighbor(
         int x,
@@ -183,12 +227,33 @@ public class GridManager : MonoBehaviour
             {
                 SetNodeColor(
                     node,
-                    node.walkable ?
-                    Color.white :
-                    Color.black
+                    GetBaseNodeColor(node)
                 );
             }
         }
+    }
+
+    private Color GetBaseNodeColor(GridNode node)
+    {
+        if (!node.walkable)
+        {
+            return Color.black;
+        }
+
+        // Road
+        if (node.terrainCost == 5)
+        {
+            return Color.gray;
+        }
+
+        // Mud
+        if (node.terrainCost == 30)
+        {
+            return new Color(0.55f, 0.27f, 0.07f);
+        }
+
+        // Normal
+        return Color.white;
     }
 
     public void SetNodeColor(
@@ -205,6 +270,7 @@ public class GridManager : MonoBehaviour
 
         renderer.material.color = color;
     }
+
 
     // Gizmos: menampilkan batas grid di Scene View (juga saat tidak Play).
     private void OnDrawGizmos()
